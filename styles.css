@@ -228,6 +228,84 @@ a.secondary-button,
   margin-top: 10px;
 }
 
+.route-history {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.route-history-heading,
+.saved-route-item {
+  display: flex;
+  align-items: center;
+}
+
+.route-history-heading {
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.route-history-heading h3 {
+  margin-bottom: 0;
+  font-size: 1rem;
+}
+
+.route-history-heading span {
+  color: var(--subtle);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.saved-routes {
+  display: grid;
+  gap: 8px;
+}
+
+.saved-route-item {
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid rgba(21, 32, 29, 0.12);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.saved-route-main {
+  min-width: 0;
+}
+
+.saved-route-main strong,
+.saved-route-main small {
+  display: block;
+}
+
+.saved-route-main strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved-route-main small {
+  margin-top: 3px;
+  color: var(--subtle);
+  font-weight: 700;
+}
+
+.saved-route-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.saved-route-actions button {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 0.88rem;
+}
+
 .selectors {
   align-items: stretch;
   gap: 20px;
@@ -540,5 +618,14 @@ code {
   .preview-actions button,
   .preview-actions a {
     flex: 1 1 160px;
+  }
+
+  .saved-route-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .saved-route-main strong {
+    white-space: normal;
   }
 }

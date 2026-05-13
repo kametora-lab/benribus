@@ -567,7 +567,9 @@ let byId = new Map(BUS_STOPS.map((stop) => [String(stop.id), stop]));
 const ROUTE_DB_NAME = "shimabus-link";
 const ROUTE_STORE_NAME = "saved-routes";
 const LAST_ROUTE_KEY = "last-route";
-let restoredRouteKey = "";
+const ROUTE_HISTORY_KEY = "route-history";
+const MAX_SAVED_ROUTES = 5;
+let savedRoutes = [];
 let lastSavedRouteKey = "";
 const elements = {
   fromInput: document.querySelector("#fromInput"),
@@ -579,6 +581,7 @@ const elements = {
   routeName: document.querySelector("#routeName"),
   routeUrl: document.querySelector("#routeUrl"),
   savedRouteStatus: document.querySelector("#savedRouteStatus"),
+  savedRoutesList: document.querySelector("#savedRoutesList"),
   openRoute: document.querySelector("#openRoute"),
   externalRoute: document.querySelector("#externalRoute"),
   swapStops: document.querySelector("#swapStops"),
@@ -623,14 +626,26 @@ function openRouteDb() {
   });
 }
 
-async function readLastRoute() {
+async function readStoredRouteData() {
   const db = await openRouteDb();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(ROUTE_STORE_NAME, "readonly");
-    const request = transaction.objectStore(ROUTE_STORE_NAME).get(LAST_ROUTE_KEY);
-    request.addEventListener("success", () => resolve(request.result || null));
-    request.addEventListener("error", () => reject(request.error));
-    transaction.addEventListener("complete", () => db.close());
+    const store = transaction.objectStore(ROUTE_STORE_NAME);
+    const historyRequest = store.get(ROUTE_HISTORY_KEY);
+    const lastRequest = store.get(LAST_ROUTE_KEY);
+    const result = { history: null, lastRoute: null };
+    historyRequest.addEventListener("success", () => {
+      result.history = historyRequest.result || null;
+    });
+    lastRequest.addEventListener("success", () => {
+      result.lastRoute = lastRequest.result || null;
+    });
+    historyRequest.addEventListener("error", () => reject(historyRequest.error));
+    lastRequest.addEventListener("error", () => reject(lastRequest.error));
+    transaction.addEventListener("complete", () => {
+      db.close();
+      resolve(result);
+    });
     transaction.addEventListener("abort", () => {
       db.close();
       reject(transaction.error);
@@ -638,15 +653,13 @@ async function readLastRoute() {
   });
 }
 
-async function writeLastRoute(route) {
+async function writeRouteHistory(routes) {
   const db = await openRouteDb();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(ROUTE_STORE_NAME, "readwrite");
     transaction.objectStore(ROUTE_STORE_NAME).put({
-      id: LAST_ROUTE_KEY,
-      fromId: String(route.from.id),
-      toId: String(route.to.id),
-      savedAt: new Date().toISOString()
+      id: ROUTE_HISTORY_KEY,
+      routes
     });
     transaction.addEventListener("complete", () => {
       db.close();
@@ -666,47 +679,126 @@ function setSavedRouteStatus(text) {
   elements.savedRouteStatus.textContent = text;
 }
 
-function showSavedRoute(route, savedAt = "") {
+function formatSavedAt(savedAt = "") {
   const date = savedAt ? new Date(savedAt) : null;
-  const dateLabel = date && !Number.isNaN(date.getTime())
-    ? `（${date.toLocaleString("ja-JP", { dateStyle: "short", timeStyle: "short" })}）`
-    : "";
-  setSavedRouteStatus(`前回の経路: ${route.from.name} → ${route.to.name}${dateLabel}`);
+  if (!date || Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("ja-JP", { dateStyle: "short", timeStyle: "short" });
+}
+
+function routeFromRecord(record) {
+  const from = byId.get(String(record.fromId));
+  const to = byId.get(String(record.toId));
+  if (!from || !to || from.id === to.id) return null;
+  return { from, to, key: `${from.id}-${to.id}`, savedAt: record.savedAt || "" };
+}
+
+function renderSavedRoutes() {
+  elements.savedRoutesList.textContent = "";
+  const routes = savedRoutes.map(routeFromRecord).filter(Boolean);
+  if (!routes.length) {
+    const empty = document.createElement("p");
+    empty.className = "muted";
+    empty.textContent = "保存された経路はまだありません。";
+    elements.savedRoutesList.append(empty);
+    return;
+  }
+
+  routes.forEach((route) => {
+    const item = document.createElement("div");
+    item.className = "saved-route-item";
+    const savedAt = formatSavedAt(route.savedAt);
+    item.innerHTML = `
+      <div class="saved-route-main">
+        <strong>${escapeAttribute(route.from.name)} → ${escapeAttribute(route.to.name)}</strong>
+        <small>${savedAt ? `${escapeAttribute(savedAt)} 保存` : "保存済み"}</small>
+      </div>
+      <div class="saved-route-actions">
+        <button class="ghost-button" type="button" data-action="use">使う</button>
+        <button class="danger-icon" type="button" data-action="delete" title="履歴から削除">×</button>
+      </div>
+    `;
+    item.querySelector('[data-action="use"]').addEventListener("click", () => {
+      applyRoute(route.from, route.to);
+    });
+    item.querySelector('[data-action="delete"]').addEventListener("click", () => {
+      deleteSavedRoute(route.key);
+    });
+    elements.savedRoutesList.append(item);
+  });
+}
+
+function showSavedRoutesStatus() {
+  if (!savedRoutes.length) {
+    setSavedRouteStatus("まだ保存された経路はありません。");
+    return;
+  }
+  const first = routeFromRecord(savedRoutes[0]);
+  if (!first) {
+    setSavedRouteStatus(`${savedRoutes.length}件の経路履歴を保存しています。`);
+    return;
+  }
+  setSavedRouteStatus(`最近の経路: ${first.from.name} → ${first.to.name}（${savedRoutes.length}/5件）`);
 }
 
 async function saveSelectedRoute(route) {
   if (!route || route.key === lastSavedRouteKey) return;
   lastSavedRouteKey = route.key;
+  const nextRoute = {
+    key: route.key,
+    fromId: String(route.from.id),
+    toId: String(route.to.id),
+    savedAt: new Date().toISOString()
+  };
+  savedRoutes = [nextRoute, ...savedRoutes.filter((saved) => saved.key !== route.key)].slice(0, MAX_SAVED_ROUTES);
+  renderSavedRoutes();
+  showSavedRoutesStatus();
   try {
-    await writeLastRoute(route);
-    showSavedRoute(route);
+    await writeRouteHistory(savedRoutes);
   } catch {
-    setSavedRouteStatus("このブラウザでは前回の経路を保存できませんでした。");
+    setSavedRouteStatus("このブラウザでは経路履歴を保存できませんでした。");
   }
 }
 
-async function restoreLastRoute() {
+async function deleteSavedRoute(routeKey) {
+  savedRoutes = savedRoutes.filter((route) => route.key !== routeKey);
+  if (lastSavedRouteKey === routeKey) lastSavedRouteKey = "";
+  renderSavedRoutes();
+  showSavedRoutesStatus();
   try {
-    const saved = await readLastRoute();
-    if (!saved) {
-      setSavedRouteStatus("まだ保存された経路はありません。");
-      return;
-    }
-
-    const from = byId.get(String(saved.fromId));
-    const to = byId.get(String(saved.toId));
-    if (!from || !to || from.id === to.id) {
-      setSavedRouteStatus("前回の経路に含まれるバス停が見つかりません。");
-      return;
-    }
-
-    restoredRouteKey = `${from.id}-${to.id}`;
-    lastSavedRouteKey = restoredRouteKey;
-    selectStop("from", from, { save: false });
-    selectStop("to", to, { save: false });
-    showSavedRoute({ from, to }, saved.savedAt);
+    await writeRouteHistory(savedRoutes);
   } catch {
-    setSavedRouteStatus("前回の経路を読み込めませんでした。");
+    setSavedRouteStatus("経路履歴を削除できませんでした。");
+  }
+}
+
+function applyRoute(from, to, options = {}) {
+  selectStop("from", from, { save: false });
+  selectStop("to", to, { save: options.save !== false });
+}
+
+async function restoreSavedRoutes() {
+  try {
+    const stored = await readStoredRouteData();
+    const history = Array.isArray(stored.history?.routes) ? stored.history.routes : [];
+    const migratedLastRoute = stored.lastRoute
+      ? [{ ...stored.lastRoute, key: `${stored.lastRoute.fromId}-${stored.lastRoute.toId}` }]
+      : [];
+    savedRoutes = [...history, ...migratedLastRoute]
+      .filter((route) => route?.fromId && route?.toId)
+      .filter((route, index, routes) => routes.findIndex((item) => item.key === route.key) === index)
+      .slice(0, MAX_SAVED_ROUTES);
+    renderSavedRoutes();
+    showSavedRoutesStatus();
+
+    const latest = routeFromRecord(savedRoutes[0] || {});
+    if (latest) {
+      lastSavedRouteKey = latest.key;
+      applyRoute(latest.from, latest.to, { save: false });
+    }
+    if (migratedLastRoute.length && !history.length) await writeRouteHistory(savedRoutes);
+  } catch {
+    renderSavedRoutes();
+    setSavedRouteStatus("経路履歴を読み込めませんでした。");
   }
 }
 
@@ -1003,6 +1095,8 @@ function afterStopsChanged(rerenderRows = true) {
   validateSelectedStop("from");
   validateSelectedStop("to");
   if (rerenderRows) renderCsvRows();
+  renderSavedRoutes();
+  showSavedRoutesStatus();
   updatePreview();
 }
 
@@ -1109,7 +1203,7 @@ rebuildStopIndex();
 bindEvents();
 renderCsvRows();
 updatePreview();
-restoreLastRoute();
+restoreSavedRoutes();
 
 
 
