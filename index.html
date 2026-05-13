@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>しまバスリンク</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230e5c4d'/%3E%3Cpath d='M18 32c0-7 6-12 14-4 8-8 14-3 14 4s-6 12-14 4c-8 8-14 3-14-4z' fill='none' stroke='%2322c7b7' stroke-width='6' stroke-linecap='round'/%3E%3Cpath d='M32 28c8-8 14-3 14 4s-6 12-14 4' fill='none' stroke='%23f5bd45' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <div class="brand">
+          <div class="mark" aria-hidden="true"><span></span></div>
+          <div>
+            <p class="eyebrow">Amami Bus Link</p>
+            <h1>しまバスリンク</h1>
+          </div>
+        </div>
+        <div class="hero-actions">
+          <button class="ghost-button" id="swapStops" type="button" title="出発と到着を入れ替え">
+            <span class="icon">⇄</span>
+            入れ替え
+          </button>
+          <button class="quiet-button" id="toggleCsvEditor" type="button">CSV編集</button>
+          <a class="ghost-button" href="https://shimabus.busplus.jp" target="_blank" rel="noreferrer">公式を開く</a>
+        </div>
+      </header>
+
+      <section class="route-finder" aria-labelledby="routeTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Route Search</p>
+            <h2 id="routeTitle">出発・到着バス停</h2>
+          </div>
+          <p class="muted"><span id="stopCount">67</span>件のバス停から検索できます。</p>
+        </div>
+
+        <div class="selectors">
+          <div class="field combo" data-combo="from">
+            <label for="fromInput">出発</label>
+            <input id="fromInput" class="search-box" type="search" placeholder="例：奄美空港 / 1" autocomplete="off" aria-expanded="false" aria-controls="fromList" />
+            <input id="fromStop" type="hidden" />
+            <div class="combo-list" id="fromList" role="listbox"></div>
+          </div>
+
+          <div class="route-line" aria-hidden="true">
+            <span></span>
+            <strong>to</strong>
+            <span></span>
+          </div>
+
+          <div class="field combo" data-combo="to">
+            <label for="toInput">到着</label>
+            <input id="toInput" class="search-box" type="search" placeholder="例：奄美市役所前 / 44" autocomplete="off" aria-expanded="false" aria-controls="toList" />
+            <input id="toStop" type="hidden" />
+            <div class="combo-list" id="toList" role="listbox"></div>
+          </div>
+        </div>
+
+        <div class="route-preview" id="routePreview">
+          <div>
+            <p class="muted">生成URL</p>
+            <strong id="routeName">出発と到着を選択してください</strong>
+            <code id="routeUrl">https://shimabus.busplus.jp/main/出発id-到着id</code>
+            <p class="muted saved-route-status" id="savedRouteStatus">前回検索した経路を読み込みます。</p>
+          </div>
+          <div class="preview-actions">
+            <button class="primary-button" id="openRoute" type="button" disabled>アプリ内で開く</button>
+            <a class="secondary-button disabled-link" id="externalRoute" href="#" target="_blank" rel="noreferrer" aria-disabled="true">別タブで開く</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="timetable-viewer" aria-labelledby="viewerTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Timetable View</p>
+            <h2 id="viewerTitle">時刻表ビュー</h2>
+          </div>
+          <p class="muted">「アプリ内で開く」を押すとここに表示します。</p>
+        </div>
+        <div class="viewer-frame">
+          <div class="viewer-placeholder" id="viewerPlaceholder">
+            <strong>まだ時刻表を開いていません</strong>
+            <span>出発・到着を選択して、生成された時刻表をこの画面内で確認できます。</span>
+          </div>
+          <div class="viewer-toolbar" id="viewerToolbar" hidden>
+            <span id="viewerUrl">https://shimabus.busplus.jp/main/</span>
+            <a id="viewerExternal" href="https://shimabus.busplus.jp" target="_blank" rel="noreferrer">別タブで開く</a>
+          </div>
+          <iframe id="timetableFrame" title="しまバス時刻表プレビュー" loading="lazy"></iframe>
+        </div>
+        <p class="viewer-note">公式サイト側の設定により埋め込み表示がブロックされる場合があります。その場合は「別タブで開く」を使ってください。</p>
+      </section>
+
+      <section class="csv-editor" id="csvEditor" aria-labelledby="csvTitle" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Bus Stop CSV</p>
+            <h2 id="csvTitle">バス停CSVの確認・編集</h2>
+            <p class="muted csv-status" id="csvStatus">内蔵初期データは現在のバス停.csvの内容を反映済みです。</p>
+          </div>
+          <div class="csv-actions">
+            <button class="ghost-button" id="reloadCsv" type="button">初期値を再表示</button>
+            <label class="file-button">
+              CSVを選択
+              <input id="csvFileInput" type="file" accept=".csv,text/csv" />
+            </label>
+            <button class="ghost-button" id="addStop" type="button">行を追加</button>
+            <button class="ghost-button" id="resetStops" type="button">初期値に戻す</button>
+            <button class="secondary-button" id="downloadCsv" type="button">CSVを書き出し</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="stop-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>バス停名</th>
+                <th>時刻表URL</th>
+                <th>地図URL</th>
+                <th>運賃</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="csvRows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
