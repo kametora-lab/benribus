@@ -61,7 +61,6 @@ await page.waitForFunction(() => document.querySelectorAll(".saved-route-item").
 const historyCountAfterDelete = await page.locator(".saved-route-item").count();
 await page.click("#openRoute");
 const frameSrc = await page.locator("#timetableFrame").getAttribute("src");
-const csvRows = await page.locator("#csvRows tr").count();
 await page.screenshot({ path: "shimabus-link-preview.png", fullPage: true });
 await browser.close();
 
@@ -95,8 +94,4 @@ if (!savedCount.hasRouteDb) {
 if (frameSrc !== "https://shimabus.busplus.jp/main/6-44") {
   throw new Error(`Unexpected iframe src: ${frameSrc}`);
 }
-if (csvRows < 67) {
-  throw new Error(`CSV table rendered too few rows: ${csvRows}`);
-}
-
 console.log("smoke test passed");

@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>しまバスリンク</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230e5c4d'/%3E%3Cpath d='M18 32c0-7 6-12 14-4 8-8 14-3 14 4s-6 12-14 4c-8 8-14 3-14-4z' fill='none' stroke='%2322c7b7' stroke-width='6' stroke-linecap='round'/%3E%3Cpath d='M32 28c8-8 14-3 14 4s-6 12-14 4' fill='none' stroke='%23f5bd45' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -16,14 +19,6 @@
             <p class="eyebrow">Amami Bus Link</p>
             <h1>しまバスリンク</h1>
           </div>
-        </div>
-        <div class="hero-actions">
-          <button class="ghost-button" id="swapStops" type="button" title="出発と到着を入れ替え">
-            <span class="icon">⇄</span>
-            入れ替え
-          </button>
-          <button class="quiet-button" id="toggleCsvEditor" type="button">CSV編集</button>
-          <a class="ghost-button" href="https://shimabus.busplus.jp" target="_blank" rel="noreferrer">公式を開く</a>
         </div>
       </header>
 
@@ -44,9 +39,12 @@
             <div class="combo-list" id="fromList" role="listbox"></div>
           </div>
 
-          <div class="route-line" aria-hidden="true">
+          <div class="route-line">
             <span></span>
-            <strong>to</strong>
+            <div class="route-line-center">
+              <strong>to</strong>
+              <button class="swap-inline-button" id="swapStops" type="button" title="出発と到着を入れ替え" aria-label="出発と到着を入れ替え">⇄</button>
+            </div>
             <span></span>
           </div>
 
@@ -60,7 +58,6 @@
 
         <div class="route-preview" id="routePreview">
           <div>
-            <p class="muted">生成URL</p>
             <strong id="routeName">出発と到着を選択してください</strong>
             <code id="routeUrl">https://shimabus.busplus.jp/main/出発id-到着id</code>
             <p class="muted saved-route-status" id="savedRouteStatus">前回検索した経路を読み込みます。</p>
@@ -102,42 +99,7 @@
         <p class="viewer-note">公式サイト側の設定により埋め込み表示がブロックされる場合があります。その場合は「別タブで開く」を使ってください。</p>
       </section>
 
-      <section class="csv-editor" id="csvEditor" aria-labelledby="csvTitle" hidden>
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Bus Stop CSV</p>
-            <h2 id="csvTitle">バス停CSVの確認・編集</h2>
-            <p class="muted csv-status" id="csvStatus">内蔵初期データは現在のバス停.csvの内容を反映済みです。</p>
-          </div>
-          <div class="csv-actions">
-            <button class="ghost-button" id="reloadCsv" type="button">初期値を再表示</button>
-            <label class="file-button">
-              CSVを選択
-              <input id="csvFileInput" type="file" accept=".csv,text/csv" />
-            </label>
-            <button class="ghost-button" id="addStop" type="button">行を追加</button>
-            <button class="ghost-button" id="resetStops" type="button">初期値に戻す</button>
-            <button class="secondary-button" id="downloadCsv" type="button">CSVを書き出し</button>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <table class="stop-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>バス停名</th>
-                <th>時刻表URL</th>
-                <th>地図URL</th>
-                <th>運賃</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="csvRows"></tbody>
-          </table>
-        </div>
-      </section>
     </main>
-
     <script src="./app.js"></script>
   </body>
 </html>

@@ -561,8 +561,6 @@
     }
 ];
 
-const EMBEDDED_BUS_STOPS = BUS_STOPS.map((stop) => ({ ...stop }));
-let INITIAL_BUS_STOPS = BUS_STOPS.map((stop) => ({ ...stop }));
 let byId = new Map(BUS_STOPS.map((stop) => [String(stop.id), stop]));
 const ROUTE_DB_NAME = "shimabus-link";
 const ROUTE_STORE_NAME = "saved-routes";
@@ -590,16 +588,7 @@ const elements = {
   viewerToolbar: document.querySelector("#viewerToolbar"),
   viewerUrl: document.querySelector("#viewerUrl"),
   viewerExternal: document.querySelector("#viewerExternal"),
-  stopCount: document.querySelector("#stopCount"),
-  csvEditor: document.querySelector("#csvEditor"),
-  csvStatus: document.querySelector("#csvStatus"),
-  toggleCsvEditor: document.querySelector("#toggleCsvEditor"),
-  csvRows: document.querySelector("#csvRows"),
-  reloadCsv: document.querySelector("#reloadCsv"),
-  csvFileInput: document.querySelector("#csvFileInput"),
-  addStop: document.querySelector("#addStop"),
-  resetStops: document.querySelector("#resetStops"),
-  downloadCsv: document.querySelector("#downloadCsv")
+  stopCount: document.querySelector("#stopCount")
 };
 
 function routeUrl(fromId, toId) {
@@ -679,17 +668,11 @@ function setSavedRouteStatus(text) {
   elements.savedRouteStatus.textContent = text;
 }
 
-function formatSavedAt(savedAt = "") {
-  const date = savedAt ? new Date(savedAt) : null;
-  if (!date || Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString("ja-JP", { dateStyle: "short", timeStyle: "short" });
-}
-
 function routeFromRecord(record) {
   const from = byId.get(String(record.fromId));
   const to = byId.get(String(record.toId));
   if (!from || !to || from.id === to.id) return null;
-  return { from, to, key: `${from.id}-${to.id}`, savedAt: record.savedAt || "" };
+  return { from, to, key: `${from.id}-${to.id}` };
 }
 
 function renderSavedRoutes() {
@@ -706,11 +689,9 @@ function renderSavedRoutes() {
   routes.forEach((route) => {
     const item = document.createElement("div");
     item.className = "saved-route-item";
-    const savedAt = formatSavedAt(route.savedAt);
     item.innerHTML = `
       <div class="saved-route-main">
         <strong>${escapeAttribute(route.from.name)} → ${escapeAttribute(route.to.name)}</strong>
-        <small>${savedAt ? `${escapeAttribute(savedAt)} 保存` : "保存済み"}</small>
       </div>
       <div class="saved-route-actions">
         <button class="ghost-button" type="button" data-action="use">使う</button>
@@ -746,8 +727,7 @@ async function saveSelectedRoute(route) {
   const nextRoute = {
     key: route.key,
     fromId: String(route.from.id),
-    toId: String(route.to.id),
-    savedAt: new Date().toISOString()
+    toId: String(route.to.id)
   };
   savedRoutes = [nextRoute, ...savedRoutes.filter((saved) => saved.key !== route.key)].slice(0, MAX_SAVED_ROUTES);
   renderSavedRoutes();
@@ -802,149 +782,13 @@ async function restoreSavedRoutes() {
   }
 }
 
-function parseCsv(text) {
-  const rows = [];
-  let row = [];
-  let cell = "";
-  let inQuotes = false;
-  const source = String(text || "").replace(/^\ufeff/, "");
-
-  for (let index = 0; index < source.length; index += 1) {
-    const char = source[index];
-    const next = source[index + 1];
-    if (char === '"' && inQuotes && next === '"') {
-      cell += '"';
-      index += 1;
-    } else if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === "," && !inQuotes) {
-      row.push(cell);
-      cell = "";
-    } else if ((char === "\n" || char === "\r") && !inQuotes) {
-      if (char === "\r" && next === "\n") index += 1;
-      row.push(cell);
-      if (row.some((value) => value.trim())) rows.push(row);
-      row = [];
-      cell = "";
-    } else {
-      cell += char;
-    }
-  }
-
-  row.push(cell);
-  if (row.some((value) => value.trim())) rows.push(row);
-  return rows;
-}
-
-function stopsFromCsv(text) {
-  const rows = parseCsv(text);
-  if (rows.length < 2) return [];
-  const headers = rows[0].map((header) => header.trim());
-  const indexOf = (...names) => names.map((name) => headers.indexOf(name)).find((index) => index >= 0);
-  const timetableIndex = indexOf("時刻表", "timetable");
-  const nameIndex = indexOf("バス亭名", "バス停名", "name");
-  const mapIndex = indexOf("のりば地図", "map");
-  const idIndex = indexOf("ID", "id");
-  const fareIndex = indexOf("(乗車)", "運賃", "fare");
-
-  return rows.slice(1).map((row) => {
-    const rawId = row[idIndex] ?? "";
-    const id = Math.trunc(Number.parseFloat(String(rawId).replace(/[^\d.]/g, "")));
-    const name = (row[nameIndex] ?? "").trim();
-    if (!id || !name) return null;
-    return {
-      id,
-      name,
-      timetable: (row[timetableIndex] ?? `https://shimabus.busplus.jp/signage/${id}`).trim(),
-      map: (row[mapIndex] ?? "").trim(),
-      fare: (row[fareIndex] ?? "").trim()
-    };
-  }).filter(Boolean);
-}
-
-async function loadStopsFromCsvFile(showAlert = false) {
-  try {
-    const response = await fetchFirstCsv();
-    const buffer = await response.arrayBuffer();
-    const csvText = decodeCsvBuffer(buffer);
-    const stops = stopsFromCsv(csvText);
-    if (!stops.length) throw new Error("CSVに有効なバス停がありません");
-    BUS_STOPS = stops;
-    INITIAL_BUS_STOPS = stops.map((stop) => ({ ...stop }));
-    afterStopsChanged();
-    elements.csvStatus.textContent = `${response.csvName} から ${stops.length}件を読み込みました。`;
-    if (showAlert) alert("バス停.csv を再読み込みしました。");
-  } catch (error) {
-    BUS_STOPS = EMBEDDED_BUS_STOPS.map((stop) => ({ ...stop }));
-    INITIAL_BUS_STOPS = BUS_STOPS.map((stop) => ({ ...stop }));
-    afterStopsChanged();
-    elements.csvStatus.textContent = `自動読込に失敗しました。内蔵データ ${BUS_STOPS.length}件を使っています。必要なら「CSVを選択」から取り込んでください。`;
-    if (showAlert) alert(`バス停.csv を読み込めませんでした。CSVを選択から取り込んでください。\n${error.message}`);
-  }
-}
-
-async function loadStopsFromPickedFile(file) {
-  if (!file) return;
-  try {
-    const buffer = await file.arrayBuffer();
-    const stops = stopsFromCsv(decodeCsvBuffer(buffer));
-    if (!stops.length) throw new Error("CSVに有効なバス停がありません");
-    BUS_STOPS = stops;
-    INITIAL_BUS_STOPS = stops.map((stop) => ({ ...stop }));
-    afterStopsChanged();
-    elements.csvStatus.textContent = `${file.name} から ${stops.length}件を取り込みました。`;
-  } catch (error) {
-    alert(`CSVを取り込めませんでした: ${error.message}`);
-  } finally {
-    elements.csvFileInput.value = "";
-  }
-}
-
-async function fetchFirstCsv() {
-  const cacheBust = `ts=${Date.now()}`;
-  const candidates = [
-    ["バス停.csv", `./${encodeURIComponent("バス停.csv")}?${cacheBust}`],
-    ["バス停.csv", `./バス停.csv?${cacheBust}`],
-    ["bus-stops.csv", `./bus-stops.csv?${cacheBust}`]
-  ];
-  const failures = [];
-
-  for (const [csvName, url] of candidates) {
-    try {
-      const response = await fetch(url, { cache: "no-store" });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      response.csvName = csvName;
-      return response;
-    } catch (error) {
-      failures.push(`${csvName}: ${error.message}`);
-    }
-  }
-
-  throw new Error(failures.join(" / "));
-}
-
-function decodeCsvBuffer(buffer) {
-  const decoders = ["utf-8", "shift_jis"];
-  for (const encoding of decoders) {
-    try {
-      const text = new TextDecoder(encoding).decode(buffer);
-      if (text.includes("時刻表") && (text.includes("バス亭名") || text.includes("バス停名"))) {
-        return text;
-      }
-    } catch {
-      // Try the next browser-supported encoding.
-    }
-  }
-  return new TextDecoder("utf-8").decode(buffer);
-}
-
 function rebuildStopIndex() {
   byId = new Map(BUS_STOPS.map((stop) => [String(stop.id), stop]));
   elements.stopCount.textContent = BUS_STOPS.length;
 }
 
 function stopLabel(stop) {
-  return `${stop.name}　ID:${stop.id}${stop.fare ? `　${stop.fare}` : ""}`;
+  return `${stop.name}　ID:${stop.id}`;
 }
 
 function renderComboList(kind, query = "") {
@@ -952,7 +796,7 @@ function renderComboList(kind, query = "") {
   const needle = normalize(query);
   const matches = BUS_STOPS.filter((stop) => {
     if (!needle) return true;
-    return normalize(`${stop.id}${stop.name}${stop.fare}`).includes(needle);
+    return normalize(`${stop.id}${stop.name}`).includes(needle);
   }).slice(0, 12);
 
   list.textContent = "";
@@ -962,7 +806,7 @@ function renderComboList(kind, query = "") {
     button.className = "combo-option";
     button.setAttribute("role", "option");
     button.dataset.id = stop.id;
-    button.innerHTML = `<span>${stop.name}</span><small>ID:${stop.id}${stop.fare ? ` / ${stop.fare}` : ""}</small>`;
+    button.innerHTML = `<span>${stop.name}</span><small>ID:${stop.id}</small>`;
     button.addEventListener("mousedown", (event) => {
       event.preventDefault();
       selectStop(kind, stop);
@@ -1044,30 +888,6 @@ function openRouteInsideApp() {
   document.querySelector(".timetable-viewer").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function renderCsvRows() {
-  elements.csvRows.textContent = "";
-  BUS_STOPS.forEach((stop, index) => {
-    const row = document.createElement("tr");
-    row.dataset.index = index;
-    row.innerHTML = `
-      <td><input class="cell-input" data-field="id" value="${escapeAttribute(stop.id)}" inputmode="numeric"></td>
-      <td><input class="cell-input" data-field="name" value="${escapeAttribute(stop.name)}"></td>
-      <td><input class="cell-input" data-field="timetable" value="${escapeAttribute(stop.timetable)}"></td>
-      <td><input class="cell-input" data-field="map" value="${escapeAttribute(stop.map)}"></td>
-      <td><input class="cell-input" data-field="fare" value="${escapeAttribute(stop.fare)}"></td>
-      <td><button class="danger-icon" type="button" title="行を削除">×</button></td>
-    `;
-    row.querySelectorAll(".cell-input").forEach((input) => {
-      input.addEventListener("change", () => updateStopFromRow(row));
-    });
-    row.querySelector(".danger-icon").addEventListener("click", () => {
-      BUS_STOPS.splice(index, 1);
-      afterStopsChanged();
-    });
-    elements.csvRows.append(row);
-  });
-}
-
 function escapeAttribute(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -1076,25 +896,13 @@ function escapeAttribute(value) {
     .replace(/>/g, "&gt;");
 }
 
-function updateStopFromRow(row) {
-  const index = Number(row.dataset.index);
-  const next = { ...BUS_STOPS[index] };
-  row.querySelectorAll(".cell-input").forEach((input) => {
-    const field = input.dataset.field;
-    next[field] = field === "id" ? Number(input.value) || input.value.trim() : input.value.trim();
-  });
-  BUS_STOPS[index] = next;
-  afterStopsChanged(false);
-}
-
-function afterStopsChanged(rerenderRows = true) {
+function afterStopsChanged() {
   BUS_STOPS = BUS_STOPS
     .filter((stop) => String(stop.id).trim() && stop.name.trim())
     .sort((a, b) => Number(a.id) - Number(b.id));
   rebuildStopIndex();
   validateSelectedStop("from");
   validateSelectedStop("to");
-  if (rerenderRows) renderCsvRows();
   renderSavedRoutes();
   showSavedRoutesStatus();
   updatePreview();
@@ -1110,47 +918,6 @@ function validateSelectedStop(kind) {
     return;
   }
   input.value = stopLabel(stop);
-}
-
-function addStopRow() {
-  const maxId = BUS_STOPS.reduce((max, stop) => Math.max(max, Number(stop.id) || 0), 0);
-  BUS_STOPS.push({
-    id: maxId + 1,
-    name: "新しいバス停",
-    timetable: `https://shimabus.busplus.jp/signage/${maxId + 1}`,
-    map: "",
-    fare: ""
-  });
-  afterStopsChanged();
-}
-
-function resetStops() {
-  BUS_STOPS = INITIAL_BUS_STOPS.map((stop) => ({ ...stop }));
-  afterStopsChanged();
-}
-
-function toCsvValue(value) {
-  const text = String(value ?? "");
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
-
-function downloadCsv() {
-  const header = ["時刻表", "バス亭名", "のりば地図", "ID", "(乗車)"];
-  const rows = BUS_STOPS.map((stop) => [
-    stop.timetable,
-    stop.name,
-    stop.map,
-    `${stop.id}.00`,
-    stop.fare
-  ]);
-  const csv = [header, ...rows].map((row) => row.map(toCsvValue).join(",")).join("\n");
-  const blob = new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "バス停.csv";
-  link.click();
-  URL.revokeObjectURL(url);
 }
 
 function bindEvents() {
@@ -1178,11 +945,6 @@ function bindEvents() {
     });
   });
   elements.openRoute.addEventListener("click", openRouteInsideApp);
-  elements.toggleCsvEditor.addEventListener("click", () => {
-    elements.csvEditor.hidden = !elements.csvEditor.hidden;
-    elements.toggleCsvEditor.classList.toggle("is-active", !elements.csvEditor.hidden);
-    if (!elements.csvEditor.hidden) elements.csvEditor.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
   elements.swapStops.addEventListener("click", () => {
     const from = elements.fromStop.value;
     const fromText = elements.fromInput.value;
@@ -1192,16 +954,10 @@ function bindEvents() {
     elements.toInput.value = fromText;
     updatePreview();
   });
-  elements.reloadCsv.addEventListener("click", resetStops);
-  elements.csvFileInput.addEventListener("change", () => loadStopsFromPickedFile(elements.csvFileInput.files[0]));
-  elements.addStop.addEventListener("click", addStopRow);
-  elements.resetStops.addEventListener("click", resetStops);
-  elements.downloadCsv.addEventListener("click", downloadCsv);
 }
 
 rebuildStopIndex();
 bindEvents();
-renderCsvRows();
 updatePreview();
 restoreSavedRoutes();
 
