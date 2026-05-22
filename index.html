@@ -3,8 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0e5c4d" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>しまバスリンク</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230e5c4d'/%3E%3Cpath d='M18 32c0-7 6-12 14-4 8-8 14-3 14 4s-6 12-14 4c-8 8-14 3-14-4z' fill='none' stroke='%2322c7b7' stroke-width='6' stroke-linecap='round'/%3E%3Cpath d='M32 28c8-8 14-3 14 4s-6 12-14 4' fill='none' stroke='%23f5bd45' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E" />
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
+    <link rel="icon" href="./icon-192.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -16,7 +21,6 @@
         <div class="brand">
           <div class="mark" aria-hidden="true"><span></span></div>
           <div>
-            <p class="eyebrow">Amami Bus Link</p>
             <h1>しまバスリンク</h1>
           </div>
         </div>
@@ -25,7 +29,6 @@
       <section class="route-finder" aria-labelledby="routeTitle">
         <div class="section-heading">
           <div>
-            <p class="eyebrow">Route Search</p>
             <h2 id="routeTitle">出発・到着バス停</h2>
           </div>
           <p class="muted"><span id="stopCount">67</span>件のバス停から検索できます。</p>
@@ -34,7 +37,14 @@
         <div class="selectors">
           <div class="field combo" data-combo="from">
             <label for="fromInput">出発</label>
-            <input id="fromInput" class="search-box" type="search" placeholder="例：奄美空港 / 1" autocomplete="off" aria-expanded="false" aria-controls="fromList" />
+            <div class="input-wrapper">
+              <input id="fromInput" class="search-box" type="search" placeholder="例：奄美空港 / 1" autocomplete="off" aria-expanded="false" aria-controls="fromList" />
+              <button class="show-all-btn" id="fromShowAll" type="button" title="全便表示" aria-label="全便表示" hidden>
+                <svg viewBox="0 0 24 24">
+                  <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2zm0-4H7V7h10v2zm0 8H7v-2h10v2z"/>
+                </svg>
+              </button>
+            </div>
             <input id="fromStop" type="hidden" />
             <div class="combo-list" id="fromList" role="listbox"></div>
           </div>
@@ -50,7 +60,14 @@
 
           <div class="field combo" data-combo="to">
             <label for="toInput">到着</label>
-            <input id="toInput" class="search-box" type="search" placeholder="例：奄美市役所前 / 44" autocomplete="off" aria-expanded="false" aria-controls="toList" />
+            <div class="input-wrapper">
+              <input id="toInput" class="search-box" type="search" placeholder="例：奄美市役所前 / 44" autocomplete="off" aria-expanded="false" aria-controls="toList" />
+              <button class="show-all-btn" id="toShowAll" type="button" title="全便表示" aria-label="全便表示" hidden>
+                <svg viewBox="0 0 24 24">
+                  <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2zm0-4H7V7h10v2zm0 8H7v-2h10v2z"/>
+                </svg>
+              </button>
+            </div>
             <input id="toStop" type="hidden" />
             <div class="combo-list" id="toList" role="listbox"></div>
           </div>
@@ -80,7 +97,6 @@
       <section class="timetable-viewer" aria-labelledby="viewerTitle">
         <div class="section-heading">
           <div>
-            <p class="eyebrow">Timetable View</p>
             <h2 id="viewerTitle">時刻表ビュー</h2>
           </div>
           <p class="muted">「アプリ内で開く」を押すとここに表示します。</p>

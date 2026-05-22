@@ -1,4 +1,4 @@
-﻿let byId = new Map(BUS_STOPS.map((stop) => [String(stop.id), stop]));
+let byId = new Map(BUS_STOPS.map((stop) => [String(stop.id), stop]));
 const ROUTE_DB_NAME = "shimabus-link";
 const ROUTE_STORE_NAME = "saved-routes";
 const LAST_ROUTE_KEY = "last-route";
@@ -25,7 +25,9 @@ const elements = {
   viewerToolbar: document.querySelector("#viewerToolbar"),
   viewerUrl: document.querySelector("#viewerUrl"),
   viewerExternal: document.querySelector("#viewerExternal"),
-  stopCount: document.querySelector("#stopCount")
+  stopCount: document.querySelector("#stopCount"),
+  fromShowAll: document.querySelector("#fromShowAll"),
+  toShowAll: document.querySelector("#toShowAll")
 };
 
 function routeUrl(fromId, toId) {
@@ -290,7 +292,37 @@ function selectedRoute() {
   return { from, to, key: `${from.id}-${to.id}`, source: "manual" };
 }
 
+function updateShowAllButtons() {
+  if (elements.fromStop.value) {
+    elements.fromShowAll.hidden = false;
+  } else {
+    elements.fromShowAll.hidden = true;
+  }
+
+  if (elements.toStop.value) {
+    elements.toShowAll.hidden = false;
+  } else {
+    elements.toShowAll.hidden = true;
+  }
+}
+
+function showAllDepartures(kind) {
+  const hidden = kind === "from" ? elements.fromStop : elements.toStop;
+  const stopId = hidden.value;
+  if (!stopId) return;
+
+  const url = `https://shimabus.busplus.jp/signage/${stopId}`;
+  elements.viewerPlaceholder.classList.add("is-hidden");
+  elements.viewerToolbar.hidden = false;
+  elements.viewerUrl.textContent = url;
+  elements.viewerExternal.href = url;
+  elements.timetableFrame.src = url;
+  elements.timetableFrame.classList.add("is-active");
+  document.querySelector(".timetable-viewer").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function updatePreview(options = {}) {
+  updateShowAllButtons();
   const route = selectedRoute();
   if (!route) {
     elements.routeName.textContent = "出発と到着を選択してください";
@@ -391,12 +423,25 @@ function bindEvents() {
     elements.toInput.value = fromText;
     updatePreview();
   });
+  elements.fromShowAll.addEventListener("click", () => showAllDepartures("from"));
+  elements.toShowAll.addEventListener("click", () => showAllDepartures("to"));
 }
 
 rebuildStopIndex();
 bindEvents();
 updatePreview();
 restoreSavedRoutes();
+
+// Register Service Worker
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").then((reg) => {
+      console.log("ServiceWorker registration successful with scope: ", reg.scope);
+    }).catch((err) => {
+      console.log("ServiceWorker registration failed: ", err);
+    });
+  });
+}
 
 
 
